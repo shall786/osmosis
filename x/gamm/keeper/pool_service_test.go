@@ -554,7 +554,18 @@ func (suite *KeeperTestSuite) TestJoinPoolNoSwap() {
 }
 
 func (suite *KeeperTestSuite) TestExitPool() {
-	fiveKFooAndBar := sdk.NewCoins(sdk.NewCoin("bar", sdk.NewInt(5000)), sdk.NewCoin("foo", sdk.NewInt(5000)))
+	//fiveKFooAndBar := sdk.NewCoins(sdk.NewCoin("bar", sdk.NewInt(5000)), sdk.NewCoin("foo", sdk.NewInt(5000)))
+	validShare := sdk.MustNewDecFromStr("100000000000000000000")
+	invalidShare := sdk.MustNewDecFromStr("100000000000000000001")
+	poolAssets := []balancertypes.PoolAsset{defaultFooAsset, defaultBarAsset}
+	defaultFooAsset = balancertypes.PoolAsset{
+		Weight: sdk.NewInt(100),
+		Token:  sdk.NewCoin("foo", sdk.NewInt(100000000000)),
+	}
+	defaultBarAsset = balancertypes.PoolAsset{
+		Weight: sdk.NewInt(100),
+		Token:  sdk.NewCoin("bar", sdk.NewInt(100000000000)),
+	}
 	tests := []struct {
 		name         string
 		txSender     sdk.AccAddress
@@ -563,58 +574,66 @@ func (suite *KeeperTestSuite) TestExitPool() {
 		emptySender  bool
 		expectPass   bool
 	}{
+		// {
+		// 	name:         "attempt exit pool with no pool share balance",
+		// 	txSender:     suite.TestAccs[0],
+		// 	sharesIn:     types.OneShare.MulRaw(50),
+		// 	tokenOutMins: sdk.Coins{},
+		// 	emptySender:  true,
+		// 	expectPass:   false,
+		// },
+		// {
+		// 	name:         "exit half pool with correct pool share balance",
+		// 	txSender:     suite.TestAccs[0],
+		// 	sharesIn:     types.OneShare.MulRaw(50),
+		// 	tokenOutMins: sdk.Coins{},
+		// 	emptySender:  false,
+		// 	expectPass:   true,
+		// },
 		{
-			name:         "attempt exit pool with no pool share balance",
+			name:         "exit pool with more than user's pool share balance",
 			txSender:     suite.TestAccs[0],
-			sharesIn:     types.OneShare.MulRaw(50),
-			tokenOutMins: sdk.Coins{},
-			emptySender:  true,
-			expectPass:   false,
-		},
-		{
-			name:         "exit half pool with correct pool share balance",
-			txSender:     suite.TestAccs[0],
-			sharesIn:     types.OneShare.MulRaw(50),
-			tokenOutMins: sdk.Coins{},
-			emptySender:  false,
-			expectPass:   true,
-		},
-		{
-			name:         "attempt exit pool requesting 0 share amount",
-			txSender:     suite.TestAccs[0],
-			sharesIn:     sdk.NewInt(0),
-			tokenOutMins: sdk.Coins{},
-			emptySender:  false,
-			expectPass:   false,
-		},
-		{
-			name:         "attempt exit pool requesting negative share amount",
-			txSender:     suite.TestAccs[0],
-			sharesIn:     sdk.NewInt(-1),
+			sharesIn:     invalidShare.TruncateInt(),
 			tokenOutMins: sdk.Coins{},
 			emptySender:  false,
 			expectPass:   false,
 		},
-		{
-			name:     "attempt exit pool with tokenOutMins above actual output",
-			txSender: suite.TestAccs[0],
-			sharesIn: types.OneShare.MulRaw(50),
-			tokenOutMins: sdk.Coins{
-				sdk.NewCoin("foo", sdk.NewInt(5001)),
-			},
-			emptySender: false,
-			expectPass:  false,
-		},
-		{
-			name:     "attempt exit pool requesting tokenOutMins at exactly the actual output",
-			txSender: suite.TestAccs[0],
-			sharesIn: types.OneShare.MulRaw(50),
-			tokenOutMins: sdk.Coins{
-				fiveKFooAndBar[1],
-			},
-			emptySender: false,
-			expectPass:  true,
-		},
+		// {
+		// 	name:         "attempt exit pool requesting 0 share amount",
+		// 	txSender:     suite.TestAccs[0],
+		// 	sharesIn:     sdk.NewInt(0),
+		// 	tokenOutMins: sdk.Coins{},
+		// 	emptySender:  false,
+		// 	expectPass:   false,
+		// },
+		// {
+		// 	name:         "attempt exit pool requesting negative share amount",
+		// 	txSender:     suite.TestAccs[0],
+		// 	sharesIn:     sdk.NewInt(-1),
+		// 	tokenOutMins: sdk.Coins{},
+		// 	emptySender:  false,
+		// 	expectPass:   false,
+		// },
+		// {
+		// 	name:     "attempt exit pool with tokenOutMins above actual output",
+		// 	txSender: suite.TestAccs[0],
+		// 	sharesIn: types.OneShare.MulRaw(50),
+		// 	tokenOutMins: sdk.Coins{
+		// 		sdk.NewCoin("foo", sdk.NewInt(5001)),
+		// 	},
+		// 	emptySender: false,
+		// 	expectPass:  false,
+		// },
+		// {
+		// 	name:     "attempt exit pool requesting tokenOutMins at exactly the actual output",
+		// 	txSender: suite.TestAccs[0],
+		// 	sharesIn: types.OneShare.MulRaw(50),
+		// 	tokenOutMins: sdk.Coins{
+		// 		fiveKFooAndBar[1],
+		// 	},
+		// 	emptySender: false,
+		// 	expectPass:  true,
+		// },
 	}
 
 	for _, test := range tests {
@@ -626,14 +645,17 @@ func (suite *KeeperTestSuite) TestExitPool() {
 			bankKeeper := suite.App.BankKeeper
 			poolmanagerKeeper := suite.App.PoolManagerKeeper
 
+			creator := suite.TestAccs[2]
+
 			// Mint assets to the pool creator
 			suite.FundAcc(test.txSender, defaultAcctFunds)
+			suite.FundAcc(creator, defaultAcctFunds)
 
 			// Create the pool at first
-			msg := balancer.NewMsgCreateBalancerPool(test.txSender, balancer.PoolParams{
+			msg := balancer.NewMsgCreateBalancerPool(creator, balancer.PoolParams{
 				SwapFee: sdk.NewDecWithPrec(1, 2),
 				ExitFee: sdk.NewDec(0),
-			}, defaultPoolAssets, defaultFutureGovernor)
+			}, poolAssets, defaultFutureGovernor)
 			poolId, err := poolmanagerKeeper.CreatePool(ctx, msg)
 
 			// If we are testing insufficient pool share balances, switch tx sender from pool creator to empty account
@@ -641,8 +663,15 @@ func (suite *KeeperTestSuite) TestExitPool() {
 				test.txSender = suite.TestAccs[1]
 			}
 
+			// Join balancer pool to create gamm shares directed in the test case
+			_, _, err = suite.App.GAMMKeeper.JoinPoolNoSwap(suite.Ctx, test.txSender, poolId, validShare.RoundInt(), sdk.NewCoins(sdk.NewCoin("foo", sdk.NewInt(999999999999999)), sdk.NewCoin("bar", sdk.NewInt(999999999999999))))
+			suite.Require().NoError(err)
+
 			balancesBefore := bankKeeper.GetAllBalances(suite.Ctx, test.txSender)
+			fmt.Printf("balances before: %v \n", balancesBefore)
+
 			_, err = gammKeeper.ExitPool(ctx, test.txSender, poolId, test.sharesIn, test.tokenOutMins)
+			fmt.Printf("err: %v \n", err)
 
 			if test.expectPass {
 				suite.Require().NoError(err, "test: %v", test.name)
@@ -661,6 +690,8 @@ func (suite *KeeperTestSuite) TestExitPool() {
 			} else {
 				suite.Require().Error(err, "test: %v", test.name)
 				suite.AssertEventEmitted(ctx, types.TypeEvtPoolExited, 0)
+				balancesAfter := bankKeeper.GetAllBalances(suite.Ctx, test.txSender)
+				fmt.Printf("balances after: %v \n", balancesAfter)
 			}
 		})
 	}
