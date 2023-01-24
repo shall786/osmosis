@@ -1,6 +1,8 @@
 package concentrated_liquidity
 
 import (
+	"time"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/osmosis-labs/osmosis/osmoutils"
@@ -37,6 +39,7 @@ func (k Keeper) initOrUpdatePosition(
 	owner sdk.AccAddress,
 	lowerTick, upperTick int64,
 	liquidityDelta sdk.Dec,
+	frozenUntil time.Time,
 ) (err error) {
 	position, err := k.getOrInitPosition(ctx, poolId, owner, lowerTick, upperTick)
 	if err != nil {
@@ -53,6 +56,8 @@ func (k Keeper) initOrUpdatePosition(
 	}
 
 	position.Liquidity = liquidityAfter
+
+	position.FrozenUntil = frozenUntil
 
 	// TODO: consider deleting position if liquidity becomes zero
 

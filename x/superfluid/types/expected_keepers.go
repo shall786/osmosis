@@ -11,6 +11,7 @@ import (
 	gammtypes "github.com/osmosis-labs/osmosis/v14/x/gamm/types"
 	incentivestypes "github.com/osmosis-labs/osmosis/v14/x/incentives/types"
 	lockuptypes "github.com/osmosis-labs/osmosis/v14/x/lockup/types"
+	poolmanagertypes "github.com/osmosis-labs/osmosis/v14/x/poolmanager/types"
 )
 
 // LockupKeeper defines the expected interface needed to retrieve locks.
@@ -47,6 +48,7 @@ type GammKeeper interface {
 	GetPoolAndPoke(ctx sdk.Context, poolId uint64) (gammtypes.CFMMPoolI, error)
 	GetPoolsAndPoke(ctx sdk.Context) (res []gammtypes.CFMMPoolI, err error)
 	ExitPool(ctx sdk.Context, sender sdk.AccAddress, poolId uint64, shareInAmount sdk.Int, tokenOutMins sdk.Coins) (exitCoins sdk.Coins, err error)
+	GetMigrationInfo(ctx sdk.Context) gammtypes.MigrationRecords
 }
 
 type BankKeeper interface {
@@ -94,4 +96,9 @@ type IncentivesKeeper interface {
 type EpochKeeper interface {
 	GetEpochInfo(ctx sdk.Context, identifier string) epochstypes.EpochInfo
 	NumBlocksSinceEpochStart(ctx sdk.Context, identifier string) (int64, error)
+}
+
+type ConcentratedKeeper interface {
+	CreatePosition(ctx sdk.Context, poolId uint64, owner sdk.AccAddress, amount0Desired, amount1Desired, amount0Min, amount1Min sdk.Int, lowerTick, upperTick int64, frozenUntil time.Time) (sdk.Int, sdk.Int, sdk.Dec, error)
+	GetPool(ctx sdk.Context, poolId uint64) (poolmanagertypes.PoolI, error)
 }
