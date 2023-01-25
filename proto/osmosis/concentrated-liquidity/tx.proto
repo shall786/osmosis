@@ -74,6 +74,11 @@ message MsgWithdrawPosition {
     (gogoproto.moretags) = "yaml:\"liquidity_amount\"",
     (gogoproto.nullable) = false
   ];
+  google.protobuf.Timestamp frozen_until = 6 [
+    (gogoproto.nullable) = false,
+    (gogoproto.stdtime) = true,
+    (gogoproto.moretags) = "yaml:\"frozen_until\""
+  ];
 }
 
 message MsgWithdrawPositionResponse {

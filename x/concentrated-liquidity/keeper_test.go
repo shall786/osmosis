@@ -63,8 +63,8 @@ func (s *KeeperTestSuite) SetupPosition(poolId uint64, owner sdk.AccAddress, coi
 }
 
 // validatePositionUpdate validates that position with given parameters has expectedRemainingLiquidity left.
-func (s *KeeperTestSuite) validatePositionUpdate(ctx sdk.Context, poolId uint64, owner sdk.AccAddress, lowerTick int64, upperTick int64, expectedRemainingLiquidity sdk.Dec) {
-	position, err := s.App.ConcentratedLiquidityKeeper.GetPosition(ctx, poolId, owner, lowerTick, upperTick)
+func (s *KeeperTestSuite) validatePositionUpdate(ctx sdk.Context, poolId uint64, owner sdk.AccAddress, lowerTick int64, upperTick int64, frozenUntil time.Time, expectedRemainingLiquidity sdk.Dec) {
+	position, err := s.App.ConcentratedLiquidityKeeper.GetPosition(ctx, poolId, owner, lowerTick, upperTick, frozenUntil)
 	s.Require().NoError(err)
 	newPositionLiquidity := position.Liquidity
 	s.Require().Equal(expectedRemainingLiquidity.String(), newPositionLiquidity.String())

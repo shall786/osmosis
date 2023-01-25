@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	time "time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/address"
@@ -63,12 +64,14 @@ func KeyTickPrefix(poolId uint64) []byte {
 }
 
 // KeyPosition uses pool Id, owner, lower tick and upper tick for keys
-func KeyPosition(poolId uint64, addr sdk.AccAddress, lowerTick, upperTick int64) []byte {
+func KeyPosition(poolId uint64, addr sdk.AccAddress, lowerTick, upperTick int64, frozenUntil time.Time) []byte {
 	var key []byte
 	key = append(key, PositionPrefix...)
+	key = append(key, sdk.Uint64ToBigEndian(poolId)...)
 	key = append(key, address.MustLengthPrefix(addr)...)
 	key = append(key, sdk.Uint64ToBigEndian(uint64(lowerTick))...)
 	key = append(key, sdk.Uint64ToBigEndian(uint64(upperTick))...)
+	key = append(key, []byte(frozenUntil.Format(time.RFC3339))...)
 	return key
 }
 

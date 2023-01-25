@@ -25,12 +25,12 @@ func (k Keeper) SetPool(ctx sdk.Context, pool types.ConcentratedPoolExtension) e
 	return k.setPool(ctx, pool)
 }
 
-func (k Keeper) HasPosition(ctx sdk.Context, poolId uint64, owner sdk.AccAddress, lowerTick, upperTick int64) bool {
-	return k.hasPosition(ctx, poolId, owner, lowerTick, upperTick)
+func (k Keeper) HasPosition(ctx sdk.Context, poolId uint64, owner sdk.AccAddress, lowerTick, upperTick int64, frozenUntil time.Time) bool {
+	return k.hasPosition(ctx, poolId, owner, lowerTick, upperTick, frozenUntil)
 }
 
-func (k Keeper) DeletePosition(ctx sdk.Context, poolId uint64, owner sdk.AccAddress, lowerTick, upperTick int64) error {
-	return k.deletePosition(ctx, poolId, owner, lowerTick, upperTick)
+func (k Keeper) DeletePosition(ctx sdk.Context, poolId uint64, owner sdk.AccAddress, lowerTick, upperTick int64, frozenUntil time.Time) error {
+	return k.deletePosition(ctx, poolId, owner, lowerTick, upperTick, frozenUntil)
 }
 
 func (k Keeper) GetPoolById(ctx sdk.Context, poolId uint64) (types.ConcentratedPoolExtension, error) {

@@ -64,7 +64,7 @@ func (k Keeper) CreatePosition(ctx sdk.Context, poolId uint64, owner sdk.AccAddr
 	}
 
 	// If this is a new position, initialize the fee accumulator for the position.
-	if !k.hasPosition(cacheCtx, poolId, owner, lowerTick, upperTick) {
+	if !k.hasPosition(cacheCtx, poolId, owner, lowerTick, upperTick, frozenUntil) {
 		if err := k.initializeFeeAccumulatorPosition(cacheCtx, poolId, owner, lowerTick, upperTick); err != nil {
 			return sdk.Int{}, sdk.Int{}, sdk.Dec{}, err
 		}
@@ -102,7 +102,7 @@ func (k Keeper) CreatePosition(ctx sdk.Context, poolId uint64, owner sdk.AccAddr
 // - there is no position in the given tick ranges
 // - if tick ranges are invalid
 // - if attempts to withdraw an amount higher than originally provided in createPosition for a given range.
-func (k Keeper) WithdrawPosition(ctx sdk.Context, poolId uint64, owner sdk.AccAddress, lowerTick, upperTick int64, requestedLiquidityAmountToWithdraw sdk.Dec) (amtDenom0, amtDenom1 sdk.Int, err error) {
+func (k Keeper) WithdrawPosition(ctx sdk.Context, poolId uint64, owner sdk.AccAddress, lowerTick, upperTick int64, frozenUntil time.Time, requestedLiquidityAmountToWithdraw sdk.Dec) (amtDenom0, amtDenom1 sdk.Int, err error) {
 	// Retrieve the pool associated with the given pool ID.
 	pool, err := k.getPoolById(ctx, poolId)
 	if err != nil {
@@ -115,7 +115,7 @@ func (k Keeper) WithdrawPosition(ctx sdk.Context, poolId uint64, owner sdk.AccAd
 	}
 
 	// Retrieve the position in the pool for the provided owner and tick range.
-	position, err := k.GetPosition(ctx, poolId, owner, lowerTick, upperTick)
+	position, err := k.GetPosition(ctx, poolId, owner, lowerTick, upperTick, frozenUntil)
 	if err != nil {
 		return sdk.Int{}, sdk.Int{}, err
 	}
@@ -154,7 +154,7 @@ func (k Keeper) WithdrawPosition(ctx sdk.Context, poolId uint64, owner sdk.AccAd
 		if _, err := k.collectFees(ctx, poolId, owner, lowerTick, upperTick); err != nil {
 			return sdk.Int{}, sdk.Int{}, err
 		}
-		if err := k.deletePosition(ctx, poolId, owner, lowerTick, upperTick); err != nil {
+		if err := k.deletePosition(ctx, poolId, owner, lowerTick, upperTick, frozenUntil); err != nil {
 			return sdk.Int{}, sdk.Int{}, err
 		}
 	}
