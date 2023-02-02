@@ -72,14 +72,27 @@ func validateAccumulatorValue(customAccumulatorValue, oldPositionAccumulatorValu
 	}
 	fmt.Printf("customAccumulatorValue: %v \n", customAccumulatorValue)
 	fmt.Printf("oldPositionAccumulatorValue: %v \n", oldPositionAccumulatorValue)
-
-	// Normalize coins to panic on negative coins but only when the value is less than or equal to -1
-	// This is important since we have remainder coins that exist in the accumulator until they reach integer values
-	customAccumulatorValueCoins := sdk.NormalizeCoins(customAccumulatorValue)
-	oldPositionAccumulatorValueCoins := sdk.NormalizeCoins(oldPositionAccumulatorValue)
-	newValue, IsAnyNegative := customAccumulatorValueCoins.SafeSub(oldPositionAccumulatorValueCoins)
+	newValue, IsAnyNegative := customAccumulatorValue.SafeSub(oldPositionAccumulatorValue)
 	if IsAnyNegative {
-		return NegativeAccDifferenceError{sdk.NewDecCoinsFromCoins(newValue...)}
+		return NegativeAccDifferenceError{newValue}
 	}
 	return nil
 }
+
+// func validateAccumulatorValue(customAccumulatorValue, oldPositionAccumulatorValue sdk.DecCoins) error {
+// 	if customAccumulatorValue.IsAnyNegative() {
+// 		return NegativeCustomAccError{customAccumulatorValue}
+// 	}
+// 	fmt.Printf("customAccumulatorValue: %v \n", customAccumulatorValue)
+// 	fmt.Printf("oldPositionAccumulatorValue: %v \n", oldPositionAccumulatorValue)
+
+// 	// Normalize coins to panic on negative coins but only when the value is less than or equal to -1
+// 	// This is important since we have remainder coins that exist in the accumulator until they reach integer values
+// 	customAccumulatorValueCoins := sdk.NormalizeCoins(customAccumulatorValue)
+// 	oldPositionAccumulatorValueCoins := sdk.NormalizeCoins(oldPositionAccumulatorValue)
+// 	newValue, IsAnyNegative := customAccumulatorValueCoins.SafeSub(oldPositionAccumulatorValueCoins)
+// 	if IsAnyNegative {
+// 		return NegativeAccDifferenceError{sdk.NewDecCoinsFromCoins(newValue...)}
+// 	}
+// 	return nil
+// }
