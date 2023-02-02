@@ -205,6 +205,7 @@ func (k Keeper) collectFees(ctx sdk.Context, poolId uint64, owner sdk.AccAddress
 	if err != nil {
 		return sdk.Coins{}, err
 	}
+	fmt.Printf("feeGrowthOutside: %v \n", feeGrowthOutside)
 
 	// We need to update the position's accumulator to the current fee growth outside
 	// before we claim rewards.
@@ -214,6 +215,7 @@ func (k Keeper) collectFees(ctx sdk.Context, poolId uint64, owner sdk.AccAddress
 
 	// claim fees.
 	feesClaimed, err := feeAccumulator.ClaimRewards(positionKey)
+	fmt.Printf("feesClaimed: %v \n", feesClaimed)
 	if err != nil {
 		return sdk.Coins{}, err
 	}

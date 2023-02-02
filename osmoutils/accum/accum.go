@@ -143,6 +143,7 @@ func (accum AccumulatorObject) AddToPositionCustomAcc(name string, newShares sdk
 	if err != nil {
 		return err
 	}
+	fmt.Printf("position add: %v \n", position.InitAccumValue)
 
 	if err := validateAccumulatorValue(customAccumulatorValue, position.InitAccumValue); err != nil {
 		return err
@@ -187,6 +188,7 @@ func (accum AccumulatorObject) RemoveFromPositionCustomAcc(name string, numShare
 	if err != nil {
 		return err
 	}
+	fmt.Printf("position remove: %v \n", position.InitAccumValue)
 
 	if err := validateAccumulatorValue(customAccumulatorValue, position.InitAccumValue); err != nil {
 		return err
@@ -248,6 +250,7 @@ func (accum AccumulatorObject) SetPositionCustomAcc(name string, customAccumulat
 	if err != nil {
 		return err
 	}
+	fmt.Printf("position set: %v \n", position.InitAccumValue)
 
 	if err := validateAccumulatorValue(customAccumulatorValue, position.InitAccumValue); err != nil {
 		return err
