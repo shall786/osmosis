@@ -1,8 +1,6 @@
 package accum
 
 import (
-	"fmt"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/osmosis-labs/osmosis/osmoutils"
@@ -12,16 +10,34 @@ var (
 	minusOne = sdk.NewDec(-1)
 )
 
+func getOrInitPosition(accum AccumulatorObject, name string) (*Record, error) {
+	position := Record{}
+	found, err := osmoutils.Get(accum.store, formatPositionPrefixKey(accum.name, name), &position)
+	if err != nil {
+		return &Record{}, err
+	}
+	if !found {
+		return &Record{InitAccumValue: accum.value}, nil
+	}
+	return &position, nil
+}
+
 // Creates a new position or override an existing position
 // at accumulator's current value with a specific number of shares and unclaimed rewards
-func initOrUpdatePosition(accum AccumulatorObject, accumulatorValue sdk.DecCoins, index string, numShareUnits sdk.Dec, unclaimedRewards sdk.DecCoins, options *Options) {
-	position := Record{
+func initOrUpdatePosition(accum AccumulatorObject, accumulatorValue sdk.DecCoins, index string, numShareUnits sdk.Dec, unclaimedRewards sdk.DecCoins, options *Options) (err error) {
+	position, err := getOrInitPosition(accum, index)
+	if err != nil {
+		return err
+	}
+
+	position = &Record{
 		NumShares:        numShareUnits,
 		InitAccumValue:   accumulatorValue,
 		UnclaimedRewards: unclaimedRewards,
 		Options:          options,
 	}
-	osmoutils.MustSet(accum.store, formatPositionPrefixKey(accum.name, index), &position)
+	osmoutils.MustSet(accum.store, formatPositionPrefixKey(accum.name, index), position)
+	return nil
 }
 
 // Gets addr's current position from store
@@ -39,60 +55,28 @@ func getPosition(accum AccumulatorObject, name string) (Record, error) {
 }
 
 // Gets total unclaimed rewards, including existing and newly accrued unclaimed rewards
-func getTotalRewards(accum AccumulatorObject, position Record) sdk.DecCoins {
+func getTotalRewards(accum AccumulatorObject, position Record, customAccumulatorValue sdk.DecCoins) sdk.DecCoins {
 	totalRewards := position.UnclaimedRewards
 
 	// TODO: add a check that accum.value is greater than position.InitAccumValue
-	accumulatorRewards := accum.value.Sub(position.InitAccumValue).MulDec(position.NumShares)
+	accumulatorRewards := accum.value.Sub(position.InitAccumValue.Add(customAccumulatorValue...)).MulDec(position.NumShares)
 	totalRewards = totalRewards.Add(accumulatorRewards...)
 
 	return totalRewards
 }
 
-// // validateAccumulatorValue validates the provided accumulator.
-// // All coins in custom accumulator value must be non-negative.
-// // Custom accumulator value must be a superset of the old accumulator value.
-// // Fails if any coin is negative. On success, returns nil.
-// func validateAccumulatorValue(customAccumulatorValue, oldPositionAccumulatorValue sdk.DecCoins) error {
-// 	if customAccumulatorValue.IsAnyNegative() {
-// 		return NegativeCustomAccError{customAccumulatorValue}
-// 	}
-// 	fmt.Printf("customAccumulatorValue: %v \n", customAccumulatorValue)
-// 	fmt.Printf("oldPositionAccumulatorValue: %v \n", oldPositionAccumulatorValue)
-// 	newValue, IsAnyNegative := customAccumulatorValue.SafeSub(oldPositionAccumulatorValue)
-// 	if IsAnyNegative {
-// 		return NegativeAccDifferenceError{newValue.MulDec(minusOne)}
-// 	}
-// 	return nil
-// }
-
+// validateAccumulatorValue validates the provided accumulator.
+// All coins in custom accumulator value must be non-negative.
+// Custom accumulator value must be a superset of the old accumulator value.
+// Fails if any coin is negative. On success, returns nil.
 func validateAccumulatorValue(customAccumulatorValue, oldPositionAccumulatorValue sdk.DecCoins) error {
 	if customAccumulatorValue.IsAnyNegative() {
 		return NegativeCustomAccError{customAccumulatorValue}
 	}
-	fmt.Printf("customAccumulatorValue: %v \n", customAccumulatorValue)
-	fmt.Printf("oldPositionAccumulatorValue: %v \n", oldPositionAccumulatorValue)
+	customAccumulatorValue.SafeSub(oldPositionAccumulatorValue)
 	newValue, IsAnyNegative := customAccumulatorValue.SafeSub(oldPositionAccumulatorValue)
 	if IsAnyNegative {
-		return NegativeAccDifferenceError{newValue}
+		return NegativeAccDifferenceError{newValue.MulDec(minusOne)}
 	}
 	return nil
 }
-
-// func validateAccumulatorValue(customAccumulatorValue, oldPositionAccumulatorValue sdk.DecCoins) error {
-// 	if customAccumulatorValue.IsAnyNegative() {
-// 		return NegativeCustomAccError{customAccumulatorValue}
-// 	}
-// 	fmt.Printf("customAccumulatorValue: %v \n", customAccumulatorValue)
-// 	fmt.Printf("oldPositionAccumulatorValue: %v \n", oldPositionAccumulatorValue)
-
-// 	// Normalize coins to panic on negative coins but only when the value is less than or equal to -1
-// 	// This is important since we have remainder coins that exist in the accumulator until they reach integer values
-// 	customAccumulatorValueCoins := sdk.NormalizeCoins(customAccumulatorValue)
-// 	oldPositionAccumulatorValueCoins := sdk.NormalizeCoins(oldPositionAccumulatorValue)
-// 	newValue, IsAnyNegative := customAccumulatorValueCoins.SafeSub(oldPositionAccumulatorValueCoins)
-// 	if IsAnyNegative {
-// 		return NegativeAccDifferenceError{sdk.NewDecCoinsFromCoins(newValue...)}
-// 	}
-// 	return nil
-// }

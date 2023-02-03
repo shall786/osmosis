@@ -986,7 +986,7 @@ func (s *KeeperTestSuite) TestFunctionalTestFees() {
 	swapCoin0, swapCoin1 := sdk.NewCoin(ETH, sdk.NewInt(5000000000000000000)), sdk.NewCoin(USDC, sdk.NewInt(5000000000000000000))
 	s.FundAcc(s.TestAccs[4], sdk.NewCoins(swapCoin0, swapCoin1))
 	// Swap four times ETH for USDC, therefore increasing the spot price
-	for i := 0; i < 4; i++ {
+	for i := 0; i < 7; i++ {
 		_, err := s.App.ConcentratedLiquidityKeeper.SwapExactAmountIn(s.Ctx, s.TestAccs[4], clPool, DefaultCoin1, ETH, sdk.ZeroInt(), clPool.GetSwapFee(s.Ctx))
 		s.Require().NoError(err)
 		clPool, _ = s.App.ConcentratedLiquidityKeeper.GetPoolById(s.Ctx, clPool.GetId())
@@ -1020,7 +1020,7 @@ func (s *KeeperTestSuite) TestFunctionalTestFees() {
 	s.Require().NoError(err)
 
 	// Swap four times USDC for ETH, therefore decreasing the spot price
-	for i := 0; i < 4; i++ {
+	for i := 0; i < 7; i++ {
 		_, err := s.App.ConcentratedLiquidityKeeper.SwapExactAmountIn(s.Ctx, s.TestAccs[4], clPool, DefaultCoin0, USDC, sdk.ZeroInt(), clPool.GetSwapFee(s.Ctx))
 		s.Require().NoError(err)
 		clPool, _ = s.App.ConcentratedLiquidityKeeper.GetPoolById(s.Ctx, clPool.GetId())
