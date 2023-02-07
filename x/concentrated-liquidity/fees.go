@@ -85,9 +85,21 @@ func (k Keeper) initializeFeeAccumulatorPosition(ctx sdk.Context, poolId uint64,
 	}
 
 	// initialize the owner's position with liquidity Delta and zero accumulator value
-	if err := feeAccumulator.NewPosition(positionKey, sdk.ZeroDec(), nil); err != nil {
+	if err := feeAccumulator.NewPositionCustomAcc(positionKey, sdk.ZeroDec(), sdk.DecCoins{}, nil); err != nil {
 		return err
 	}
+
+	// feeGrowthOutside, err := k.getFeeGrowthOutside(ctx, poolId, lowerTick, upperTick)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// customAccum := feeAccumulator.GetValue().Sub(feeGrowthOutside)
+
+	// // initialize the owner's position with liquidity Delta and zero accumulator value
+	// if err := feeAccumulator.NewPositionCustomAcc(positionKey, sdk.ZeroDec(), customAccum, nil); err != nil {
+	// 	return err
+	// }
 
 	return nil
 }
@@ -207,14 +219,15 @@ func (k Keeper) collectFees(ctx sdk.Context, poolId uint64, owner sdk.AccAddress
 		return sdk.Coins{}, err
 	}
 
-	// We need to update the position's accumulator to the current fee growth outside
-	// before we claim rewards.
-	if err := feeAccumulator.SetPositionCustomAcc(positionKey, feeGrowthOutside); err != nil {
-		return sdk.Coins{}, err
-	}
+	feeAccumulator.SetPositionCustomAcc(positionKey, feeGrowthOutside)
+
+	customAccum := feeAccumulator.GetValue().Sub(feeGrowthOutside)
+	fmt.Println("in collectFees feeAccumValue", feeAccumulator.GetValue())
+	fmt.Println("in collectFees feeGrowthOutside", feeGrowthOutside)
+	fmt.Println("customAccum", customAccum)
 
 	// claim fees.
-	feesClaimed, err := feeAccumulator.ClaimRewards(positionKey)
+	feesClaimed, err := feeAccumulator.ClaimRewardsCustomAcc(positionKey, customAccum)
 	if err != nil {
 		return sdk.Coins{}, err
 	}

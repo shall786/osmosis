@@ -23,7 +23,7 @@ type AccumulatorObject struct {
 	value sdk.DecCoins
 
 	// Accumulator's total shares across all positions
-	totalShares	sdk.Dec
+	totalShares sdk.Dec
 }
 
 // Makes a new accumulator at store/accum/{accumName}
@@ -278,10 +278,14 @@ func (accum AccumulatorObject) SetPositionCustomAcc(name string, customAccumulat
 	if err := validateAccumulatorValue(customAccumulatorValue, position.InitAccumValue); err != nil {
 		return err
 	}
+	fmt.Println("setPositionCustom customAccumulatorValue", customAccumulatorValue)
+	fmt.Println("setPositionCustom position.InitAccumValue", position.InitAccumValue)
+
+	test := customAccumulatorValue.Add(position.InitAccumValue...)
 
 	// Update the user's position with the new accumulator value. The unclaimed rewards, options, and
 	// the number of shares stays the same as in the original position.
-	initOrUpdatePosition(accum, customAccumulatorValue, name, position.NumShares, position.UnclaimedRewards, position.Options)
+	initOrUpdatePosition(accum, test, name, position.NumShares, position.UnclaimedRewards, position.Options)
 
 	return nil
 }
@@ -322,12 +326,22 @@ func (accum AccumulatorObject) GetValue() sdk.DecCoins {
 	return accum.value
 }
 
-// ClaimRewards claims the rewards for the given address, and returns the amount of rewards claimed.
-// Upon claiming the rewards, the position at the current address is reset to have no
+// ClaimRewards claims the rewards for position with the given name, and returns the amount of rewards claimed.
+// Upon claiming the rewards, the position is reset to have no
 // unclaimed rewards. The position's accumulator is also set to the current accumulator value.
 // Returns error if no position exists for the given address. Returns error if any
 // database errors occur.
 func (accum AccumulatorObject) ClaimRewards(positionName string) (sdk.Coins, error) {
+	return accum.ClaimRewardsCustomAcc(positionName, accum.value)
+}
+
+// ClaimRewardsCustomAcc claims the rewards for position with the given name, and returns the amount of rewards claimed.
+// Upon claiming the rewards, the position at the current address is reset to have no
+// unclaimed rewards. The position's accumulator is also set to the current accumulator value.
+// Returns error if no position exists for the given address. Returns error if any
+// database errors occur.
+// While similar to ClaimRewards, this function allows for an additional argument of feeGrowthOutside to be passed in.
+func (accum AccumulatorObject) ClaimRewardsCustomAcc(positionName string, customAccumulatorValue sdk.DecCoins) (sdk.Coins, error) {
 	position, err := getPosition(accum, positionName)
 	if err != nil {
 		return sdk.Coins{}, NoPositionError{positionName}
@@ -344,7 +358,8 @@ func (accum AccumulatorObject) ClaimRewards(positionName string) (sdk.Coins, err
 	if position.NumShares.Equal(sdk.ZeroDec()) {
 		accum.deletePosition(positionName)
 	} else { // else, create a completely new position, with no rewards
-		initOrUpdatePosition(accum, accum.value, positionName, position.NumShares, sdk.NewDecCoins(), position.Options)
+		// The position's accumulator is set to the current accumulator value less the fee growth outside.
+		initOrUpdatePosition(accum, customAccumulatorValue, positionName, position.NumShares, sdk.NewDecCoins(), position.Options)
 	}
 
 	return truncatedRewards, nil
