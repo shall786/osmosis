@@ -15,10 +15,10 @@ import (
 // UpgradeName defines the on-chain upgrade name for the Osmosis v15 upgrade.
 const UpgradeName = "v15"
 
-// pool ids to migrate
-const stOSMO_OSMOPoolId = 833
-const stJUNO_JUNOPoolId = 817
-const stSTARS_STARSPoolId = 810
+// // pool ids to migrate
+// const stOSMO_OSMOPoolId = 833
+// const stJUNO_JUNOPoolId = 817
+// const stSTARS_STARSPoolId = 810
 
 var Upgrade = upgrades.Upgrade{
 	UpgradeName:          UpgradeName,
