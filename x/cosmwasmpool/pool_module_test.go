@@ -31,7 +31,7 @@ func (s *PoolModuleSuite) TestInitializePool() {
 	var (
 		defaultPoolId = uint64(1)
 		validTestPool = &model.Pool{
-			PoolStoreModel: model.PoolStoreModel{
+			CosmWasmPool: model.CosmWasmPool{
 				PoolAddress:     gammtypes.NewPoolAddress(defaultPoolId).String(),
 				ContractAddress: "", // N.B.: to be set in InitializePool()
 				PoolId:          defaultPoolId,
@@ -100,7 +100,7 @@ func (s *PoolModuleSuite) TestInitializePool() {
 			// Check that the pool's data is set
 			expectedPool := validTestPool
 			expectedPool.ContractAddress = tc.mockInstantiateReturn.contractAddress.String()
-			s.Require().Equal(expectedPool.PoolStoreModel, cosmWasmPool.PoolStoreModel)
+			s.Require().Equal(expectedPool.CosmWasmPool, cosmWasmPool.CosmWasmPool)
 		})
 	}
 }

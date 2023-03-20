@@ -13,7 +13,7 @@ import (
 )
 
 func RegisterCodec(cdc *codec.LegacyAmino) {
-	cdc.RegisterConcrete(&PoolStoreModel{}, "osmosis/cosmwasm-pool", nil)
+	cdc.RegisterConcrete(&CosmWasmPool{}, "osmosis/cosmwasm-pool", nil)
 	cdc.RegisterConcrete(&MsgCreateCosmWasmPool{}, "osmosis/cosmwasm-create-pool", nil)
 }
 
@@ -21,12 +21,12 @@ func RegisterInterfaces(registry cdctypes.InterfaceRegistry) {
 	registry.RegisterInterface(
 		"osmosis.poolmanager.v1beta1.PoolI",
 		(*poolmanagertypes.PoolI)(nil),
-		&Pool{},
+		&CosmWasmPool{},
 	)
 	registry.RegisterInterface(
 		"osmosis.cosmwasmpool.v1beta1.CosmWasmExtension",
 		(*types.CosmWasmExtension)(nil),
-		&Pool{},
+		&CosmWasmPool{},
 	)
 
 	registry.RegisterImplementations(

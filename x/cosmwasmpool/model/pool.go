@@ -13,7 +13,7 @@ import (
 )
 
 type Pool struct {
-	PoolStoreModel
+	CosmWasmPool
 	WasmKeeper types.WasmKeeper
 }
 
@@ -25,7 +25,7 @@ var (
 // NewCosmWasmPool creates a new CosmWasm pool with the specified parameters.
 func NewCosmWasmPool(poolId uint64, codeId uint64, instantiateMsg []byte) Pool {
 	pool := Pool{
-		PoolStoreModel: PoolStoreModel{
+		CosmWasmPool: CosmWasmPool{
 			PoolAddress:     gammtypes.NewPoolAddress(poolId).String(),
 			ContractAddress: "", // N.B. This is to be set in InitializePool()
 			PoolId:          poolId,
@@ -56,7 +56,7 @@ func (p Pool) GetId() uint64 {
 
 // String returns the json marshalled string of the pool
 func (p Pool) String() string {
-	return p.PoolStoreModel.String()
+	return p.CosmWasmPool.String()
 }
 
 // GetSwapFee returns the swap fee of the pool.
@@ -124,7 +124,7 @@ func (p Pool) SetContractAddress(contractAddress string) {
 }
 
 func (p Pool) GetStoreModel() proto.Message {
-	return &p.PoolStoreModel
+	return &p.CosmWasmPool
 }
 
 // Set the wasm keeper.
