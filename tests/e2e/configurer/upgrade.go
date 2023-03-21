@@ -143,7 +143,7 @@ func (uc *UpgradeConfigurer) CreatePreUpgradeState() error {
 	})
 
 	// test swap exact amount in for stable swap pool (only chainA)A
-	chainANode.SwapExactAmountIn("2000stake", "1", fmt.Sprintf("%d", config.PreUpgradeStableSwapPoolId), "uosmo", config.StableswapWallet)
+	chainANode.SwapExactAmountInLegacy("2000stake", "1", fmt.Sprintf("%d", config.PreUpgradeStableSwapPoolId), "uosmo", config.StableswapWallet)
 
 	// Upload the rate limiting contract to both chains (as they both will be updated)
 	uc.t.Logf("Uploading rate limiting contract to both chains")
