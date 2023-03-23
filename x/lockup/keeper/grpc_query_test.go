@@ -8,10 +8,11 @@ import (
 	"github.com/osmosis-labs/osmosis/v15/x/lockup/types"
 )
 
-func (suite *KeeperTestSuite) LockTokens(addr sdk.AccAddress, coins sdk.Coins, duration time.Duration) {
+func (suite *KeeperTestSuite) LockTokens(addr sdk.AccAddress, coins sdk.Coins, duration time.Duration) uint64 {
 	suite.FundAcc(addr, coins)
-	_, err := suite.querier.CreateLock(suite.Ctx, addr, coins, duration)
+	lock, err := suite.querier.CreateLock(suite.Ctx, addr, coins, duration)
 	suite.Require().NoError(err)
+	return lock.ID
 }
 
 func (suite *KeeperTestSuite) BeginUnlocking(addr sdk.AccAddress) {
