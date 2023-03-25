@@ -15,6 +15,7 @@ const (
 	TypeMsgBeginUnlocking    = "begin_unlocking"
 	TypeMsgExtendLockup      = "edit_lockup"
 	TypeForceUnlock          = "force_unlock"
+	TypeMsgRebondTokens      = "rebond_tokens"
 )
 
 var _ sdk.Msg = &MsgLockTokens{}
@@ -201,6 +202,36 @@ func (m MsgForceUnlock) GetSignBytes() []byte {
 }
 
 func (m MsgForceUnlock) GetSigners() []sdk.AccAddress {
+	owner, _ := sdk.AccAddressFromBech32(m.Owner)
+	return []sdk.AccAddress{owner}
+}
+
+// NewMsgRebondTokens creates a message to rebond tokens.
+func NewMsgRebondTokens(owner sdk.AccAddress, ID uint64) *MsgRebondTokens {
+	return &MsgRebondTokens{
+		Owner: owner.String(),
+		ID:    ID,
+	}
+}
+
+func (m MsgRebondTokens) Route() string { return RouterKey }
+func (m MsgRebondTokens) Type() string  { return TypeMsgRebondTokens }
+func (m MsgRebondTokens) ValidateBasic() error {
+	_, err := sdk.AccAddressFromBech32(m.Owner)
+	if err != nil {
+		return sdkerrors.Wrapf(sdkerrors.ErrInvalidAddress, "Invalid owner address (%s)", err)
+	}
+	if m.ID <= 0 {
+		return fmt.Errorf("invalid lock ID, got %v", m.ID)
+	}
+	return nil
+}
+
+func (m MsgRebondTokens) GetSignBytes() []byte {
+	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(&m))
+}
+
+func (m MsgRebondTokens) GetSigners() []sdk.AccAddress {
 	owner, _ := sdk.AccAddressFromBech32(m.Owner)
 	return []sdk.AccAddress{owner}
 }
