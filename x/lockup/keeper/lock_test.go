@@ -41,6 +41,11 @@ func (suite *KeeperTestSuite) TestRebondTokens() {
 			coinsToRebond: coins,
 		},
 		{
+			name:         "Valid: implicitly rebond all tokens by setting coinsToRebond as nil",
+			unlock:       true,
+			rebondLockID: defaultLockID,
+		},
+		{
 			name:          "Invalid: Trying to rebond a non existent lock id",
 			unlock:        true,
 			rebondLockID:  nonExistingLockID,
@@ -95,7 +100,7 @@ func (suite *KeeperTestSuite) TestRebondTokens() {
 				suite.Require().False(rebondedLock.IsUnlocking())
 			} else {
 				// check original lock: should be replaced with rebonding lock
-				suite.Require().Equal(lock.Coins, tc.coinsToRebond)
+				suite.Require().Equal(lock.Coins, coins)
 				suite.Require().False(lock.IsUnlocking())
 			}
 		})
