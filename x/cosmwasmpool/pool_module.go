@@ -5,8 +5,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/osmosis-labs/osmosis/v15/x/cosmwasmpool/cosmwasm"
+	"github.com/osmosis-labs/osmosis/v15/x/cosmwasmpool/types"
 	poolmanagertypes "github.com/osmosis-labs/osmosis/v15/x/poolmanager/types"
-	"github.com/osmosis-labs/osmosis/v15/x/tokenfactory/types"
 )
 
 var (
@@ -42,7 +42,7 @@ func (k Keeper) InitializePool(ctx sdk.Context, pool poolmanagertypes.PoolI, cre
 	cosmwasmPool.SetContractAddress(contractAddress.String())
 
 	// Store the pool model
-	k.setPool(ctx, cosmwasmPool)
+	k.SetPool(ctx, cosmwasmPool)
 
 	return nil
 }
@@ -85,13 +85,20 @@ func (k Keeper) GetPoolDenoms(ctx sdk.Context, poolId uint64) (denoms []string, 
 		return nil, err
 	}
 
-	request := cosmwasm.GetPoolDenoms{}
-	respose, err := cosmwasm.Query[cosmwasm.GetPoolDenoms, cosmwasm.GetPoolDenomsResponse](ctx, k.wasmKeeper, cosmwasmPool.GetContractAddress(), request)
-	if err != nil {
-		return nil, err
+	liquidity := cosmwasmPool.GetTotalPoolLiquidity(ctx)
+	if liquidity.Len() < 2 {
+		return nil, types.InvalidLiquiditySetError{
+			PoolId:     poolId,
+			TokenCount: liquidity.Len(),
+		}
 	}
 
-	return respose.PoolDenoms, nil
+	denoms = make([]string, 0, liquidity.Len())
+	for _, coin := range liquidity {
+		denoms = append(denoms, coin.Denom)
+	}
+
+	return denoms, nil
 }
 
 // CalculateSpotPrice calculates the spot price of a pair of assets in a CosmWasm-based liquidity pool.

@@ -4,15 +4,6 @@ package cosmwasm
 
 import sdk "github.com/cosmos/cosmos-sdk/types"
 
-// GetPoolDenoms
-type GetPoolDenoms struct {
-	GetPoolDenoms struct{} `json:"get_pool_denoms"`
-}
-
-type GetPoolDenomsResponse struct {
-	PoolDenoms []string `json:"pool_denoms"`
-}
-
 // CalcOutAmtGivenIn
 type CalcOutGivenIn struct {
 	TokenIn       sdk.Coin `json:"token_in"`

@@ -24,10 +24,12 @@ type GetExitFeeResponse struct {
 
 // SpotPrice
 type SpotPrice struct {
-	SpotPrice struct {
-		QuoteAssetDenom string `json:"quote_asset_denom"`
-		BaseAssetDenom  string `json:"base_asset_denom"`
-	} `json:"spot_price"`
+	QuoteAssetDenom string `json:"quote_asset_denom"`
+	BaseAssetDenom  string `json:"base_asset_denom"`
+}
+
+type SpotPriceRequest struct {
+	SpotPrice SpotPrice `json:"spot_price"`
 }
 
 type SpotPriceResponse struct {

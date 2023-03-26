@@ -8,7 +8,7 @@ import (
 	"github.com/osmosis-labs/osmosis/v15/x/cosmwasmpool/types"
 )
 
-func (k Keeper) setPool(ctx sdk.Context, pool types.CosmWasmExtension) {
+func (k Keeper) SetPool(ctx sdk.Context, pool types.CosmWasmExtension) {
 	store := ctx.KVStore(k.storeKey)
 	osmoutils.MustSet(store, types.FormatPoolsPrefix(pool.GetId()), pool.GetStoreModel())
 }

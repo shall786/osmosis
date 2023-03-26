@@ -67,6 +67,7 @@ func (p Pool) GetSwapFee(ctx sdk.Context) sdk.Dec {
 }
 
 // GetExitFee returns the exit fee of the pool
+// TODO: this method is to ve removed.
 func (p Pool) GetExitFee(ctx sdk.Context) sdk.Dec {
 	request := cosmwasm.GetExitFee{}
 	response := cosmwasm.MustQuery[cosmwasm.GetExitFee, cosmwasm.GetExitFeeResponse](ctx, p.WasmKeeper, p.ContractAddress, request)
@@ -80,8 +81,13 @@ func (p Pool) IsActive(ctx sdk.Context) bool {
 
 // SpotPrice returns the spot price of the pool.
 func (p Pool) SpotPrice(ctx sdk.Context, baseAssetDenom string, quoteAssetDenom string) (sdk.Dec, error) {
-	request := cosmwasm.SpotPrice{}
-	response, err := cosmwasm.Query[cosmwasm.SpotPrice, cosmwasm.SpotPriceResponse](ctx, p.WasmKeeper, p.ContractAddress, request)
+	request := cosmwasm.SpotPriceRequest{
+		SpotPrice: cosmwasm.SpotPrice{
+			QuoteAssetDenom: quoteAssetDenom,
+			BaseAssetDenom:  baseAssetDenom,
+		},
+	}
+	response, err := cosmwasm.Query[cosmwasm.SpotPriceRequest, cosmwasm.SpotPriceResponse](ctx, p.WasmKeeper, p.ContractAddress, request)
 	if err != nil {
 		return sdk.Dec{}, err
 	}
@@ -119,7 +125,7 @@ func (p Pool) GetContractAddress() string {
 	return p.ContractAddress
 }
 
-func (p Pool) SetContractAddress(contractAddress string) {
+func (p *Pool) SetContractAddress(contractAddress string) {
 	p.ContractAddress = contractAddress
 }
 

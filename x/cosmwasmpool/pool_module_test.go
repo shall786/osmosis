@@ -1,6 +1,7 @@
 package cosmwasmpool_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -8,11 +9,17 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/osmosis-labs/osmosis/v15/app/apptesting"
+	"github.com/osmosis-labs/osmosis/v15/x/cosmwasmpool/cosmwasm"
 	"github.com/osmosis-labs/osmosis/v15/x/cosmwasmpool/mocks"
 	"github.com/osmosis-labs/osmosis/v15/x/cosmwasmpool/model"
 	"github.com/osmosis-labs/osmosis/v15/x/cosmwasmpool/types"
 	gammtypes "github.com/osmosis-labs/osmosis/v15/x/gamm/types"
 	poolmanagertypes "github.com/osmosis-labs/osmosis/v15/x/poolmanager/types"
+)
+
+const (
+	denomA = apptesting.DefaultTransmuterDenomA
+	denomB = apptesting.DefaultTransmuterDenomB
 )
 
 type PoolModuleSuite struct {
@@ -101,6 +108,95 @@ func (s *PoolModuleSuite) TestInitializePool() {
 			expectedPool := validTestPool
 			expectedPool.ContractAddress = tc.mockInstantiateReturn.contractAddress.String()
 			s.Require().Equal(expectedPool.CosmWasmPool, cosmWasmPool.CosmWasmPool)
+		})
+	}
+}
+
+func (s *PoolModuleSuite) TestGetPoolDenoms() {
+	var (
+		defaultPoolId = uint64(1)
+	)
+
+	tests := map[string]struct {
+		denoms          []string
+		poolId          uint64
+		isMockPool      bool
+		mockErrorReturn error
+		expectError     error
+	}{
+		"valid with 2 denoms": {
+			denoms: []string{denomA, denomB},
+			poolId: defaultPoolId,
+		},
+		"valid with 3 denoms": {
+			denoms: []string{denomA, denomB, "third"},
+			poolId: defaultPoolId,
+		},
+		"invalid number of denoms": {
+			denoms:     []string{denomA},
+			poolId:     defaultPoolId,
+			isMockPool: true,
+			expectError: types.InvalidLiquiditySetError{
+				PoolId:     defaultPoolId,
+				TokenCount: 1,
+			},
+		},
+		"invalid pool id": {
+			denoms: []string{denomA, denomB},
+			poolId: defaultPoolId + 1,
+			expectError: types.PoolNotFoundError{
+				PoolId: defaultPoolId + 1,
+			},
+		},
+	}
+
+	for name, tc := range tests {
+		tc := tc
+		s.Run(name, func() {
+			s.SetupTest()
+
+			cosmwasmPoolKeeper := s.App.CosmwasmPoolKeeper
+
+			if tc.isMockPool {
+				ctrl := gomock.NewController(s.T())
+				defer ctrl.Finish()
+
+				// Setup byte return.
+
+				liquidityReturn := sdk.NewCoins()
+				for _, denom := range tc.denoms {
+					liquidityReturn = liquidityReturn.Add(sdk.NewCoin(denom, sdk.NewInt(1)))
+				}
+				response := cosmwasm.GetTotalPoolLiquidityResponse{
+					TotalPoolLiquidity: liquidityReturn,
+				}
+				bz, err := json.Marshal(response)
+				s.Require().NoError(err)
+
+				mockWasmKeeper := mocks.NewMockWasmKeeper(ctrl)
+				mockWasmKeeper.EXPECT().QuerySmart(gomock.Any(), gomock.Any(), gomock.Any()).Return(bz, tc.mockErrorReturn)
+				cosmwasmPoolKeeper.SetWasmKeeper(mockWasmKeeper)
+
+				// Write dummy pool to store.
+				cosmwasmPoolKeeper.SetPool(s.Ctx, &model.Pool{
+					CosmWasmPool: model.CosmWasmPool{
+						PoolId:          tc.poolId,
+						ContractAddress: s.TestAccs[0].String(),
+					},
+				})
+			} else {
+				s.PrepareCustomTransmuterPool(s.TestAccs[0], tc.denoms, 1)
+			}
+
+			denoms, err := cosmwasmPoolKeeper.GetPoolDenoms(s.Ctx, tc.poolId)
+			if tc.expectError != nil {
+				s.Require().Error(err)
+				s.Require().ErrorAs(err, &tc.expectError)
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal(tc.denoms, denoms)
 		})
 	}
 }
