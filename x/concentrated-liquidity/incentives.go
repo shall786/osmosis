@@ -7,6 +7,7 @@ import (
 	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"golang.org/x/exp/slices"
 
 	"github.com/osmosis-labs/osmosis/osmoutils"
 	"github.com/osmosis-labs/osmosis/osmoutils/accum"
@@ -180,7 +181,11 @@ func (k Keeper) updateUptimeAccumulatorsToNow(ctx sdk.Context, poolId uint64) er
 	}
 
 	// Update pool incentive records and LastLiquidityUpdate time in state to reflect emitted incentives
-	k.setMultipleIncentiveRecords(ctx, poolIncentiveRecords)
+	err = k.setMultipleIncentiveRecords(ctx, poolIncentiveRecords)
+	if err != nil {
+		return err
+	}
+
 	pool.SetLastLiquidityUpdate(ctx.BlockTime())
 	err = k.setPool(ctx, pool)
 	if err != nil {
@@ -223,6 +228,14 @@ func calcAccruedIncentivesForAccum(ctx sdk.Context, accumUptime time.Duration, q
 
 				// Each incentive record should only be modified once
 				poolIncentiveRecords[incentiveIndex].RemainingAmount = remainingRewards
+			} else {
+				// If there are not enough incentives remaining to be emitted, we emit the remaining rewards.
+				// When the returned records are set in state, all records with remaining rewards of zero will be cleared.
+				remainingIncentivesPerLiquidity := remainingRewards.QuoTruncate(qualifyingLiquidity)
+				emittedIncentivesPerLiquidity = sdk.NewDecCoinFromDec(incentiveRecord.IncentiveDenom, remainingIncentivesPerLiquidity)
+				incentivesToAddToCurAccum = incentivesToAddToCurAccum.Add(emittedIncentivesPerLiquidity)
+
+				poolIncentiveRecords[incentiveIndex].RemainingAmount = sdk.ZeroDec()
 			}
 		}
 	}
@@ -230,32 +243,71 @@ func calcAccruedIncentivesForAccum(ctx sdk.Context, accumUptime time.Duration, q
 	return incentivesToAddToCurAccum, poolIncentiveRecords, nil
 }
 
+// findUptimeIndex finds the uptime index for the passed in min uptime.
+// Returns error if uptime index cannot be found.
+func findUptimeIndex(uptime time.Duration) (int, error) {
+	index := slices.IndexFunc(types.SupportedUptimes, func(e time.Duration) bool { return e == uptime })
+
+	if index == -1 {
+		return index, types.InvalidUptimeIndexError{MinUptime: uptime, SupportedUptimes: types.SupportedUptimes}
+	}
+
+	return index, nil
+}
+
 // nolint: unused
 // setIncentiveRecords sets the passed in incentive records in state
-func (k Keeper) setIncentiveRecord(ctx sdk.Context, incentiveRecord types.IncentiveRecord) {
+// Errors if the incentive record has an unsupported min uptime.
+func (k Keeper) setIncentiveRecord(ctx sdk.Context, incentiveRecord types.IncentiveRecord) error {
 	store := ctx.KVStore(k.storeKey)
-	key := types.KeyIncentiveRecord(incentiveRecord.PoolId, incentiveRecord.IncentiveDenom, incentiveRecord.MinUptime, incentiveRecord.IncentiveCreator)
+
+	uptimeIndex, err := findUptimeIndex(incentiveRecord.MinUptime)
+	if err != nil {
+		return err
+	}
+
+	key := types.KeyIncentiveRecord(incentiveRecord.PoolId, uptimeIndex, incentiveRecord.IncentiveDenom, incentiveRecord.IncentiveCreator)
 	incentiveRecordBody := types.IncentiveRecordBody{
 		RemainingAmount: incentiveRecord.RemainingAmount,
 		EmissionRate:    incentiveRecord.EmissionRate,
 		StartTime:       incentiveRecord.StartTime,
 	}
-	osmoutils.MustSet(store, key, &incentiveRecordBody)
+
+	// If the remaining amount is zero and the record already exists in state, we delete the record from state.
+	// If it's zero and the record doesn't exist in state, we do a no-op.
+	// In all other cases, we update the record in state
+	if store.Has(key) && incentiveRecordBody.RemainingAmount.IsZero() {
+		store.Delete(key)
+	} else if incentiveRecordBody.RemainingAmount.GT(sdk.ZeroDec()) {
+		osmoutils.MustSet(store, key, &incentiveRecordBody)
+	}
+
+	return nil
 }
 
-// nolint: unused
 // setMultipleIncentiveRecords sets multiple incentive records in state
-func (k Keeper) setMultipleIncentiveRecords(ctx sdk.Context, incentiveRecords []types.IncentiveRecord) {
+func (k Keeper) setMultipleIncentiveRecords(ctx sdk.Context, incentiveRecords []types.IncentiveRecord) error {
 	for _, incentiveRecord := range incentiveRecords {
-		k.setIncentiveRecord(ctx, incentiveRecord)
+		err := k.setIncentiveRecord(ctx, incentiveRecord)
+		if err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
 
 // GetIncentiveRecord gets the incentive record corresponding to the passed in values from store
 func (k Keeper) GetIncentiveRecord(ctx sdk.Context, poolId uint64, denom string, minUptime time.Duration, incentiveCreator sdk.AccAddress) (types.IncentiveRecord, error) {
 	store := ctx.KVStore(k.storeKey)
 	incentiveBodyStruct := types.IncentiveRecordBody{}
-	key := types.KeyIncentiveRecord(poolId, denom, minUptime, incentiveCreator)
+
+	uptimeIndex, err := findUptimeIndex(minUptime)
+	if err != nil {
+		return types.IncentiveRecord{}, err
+	}
+
+	key := types.KeyIncentiveRecord(poolId, uptimeIndex, denom, incentiveCreator)
 
 	found, err := osmoutils.Get(store, key, &incentiveBodyStruct)
 	if err != nil {
@@ -278,9 +330,26 @@ func (k Keeper) GetIncentiveRecord(ctx sdk.Context, poolId uint64, denom string,
 }
 
 // GetAllIncentiveRecordsForPool gets all the incentive records for poolId
-// Returns error if it is unable to retrieve
+// Returns error if it is unable to retrieve records.
 func (k Keeper) GetAllIncentiveRecordsForPool(ctx sdk.Context, poolId uint64) ([]types.IncentiveRecord, error) {
 	return osmoutils.GatherValuesFromStorePrefixWithKeyParser(ctx.KVStore(k.storeKey), types.KeyPoolIncentiveRecords(poolId), ParseFullIncentiveRecordFromBz)
+}
+
+// GetAllIncentiveRecordsForUptime gets all the incentive records for the given poolId and minUptime
+// Returns error if the passed in uptime is not supported or it is unable to retrieve records.
+func (k Keeper) GetAllIncentiveRecordsForUptime(ctx sdk.Context, poolId uint64, minUptime time.Duration) ([]types.IncentiveRecord, error) {
+	// Ensure pool exists in state
+	_, err := k.getPoolById(ctx, poolId)
+	if err != nil {
+		return []types.IncentiveRecord{}, err
+	}
+
+	uptimeIndex, err := findUptimeIndex(minUptime)
+	if err != nil {
+		return []types.IncentiveRecord{}, err
+	}
+
+	return osmoutils.GatherValuesFromStorePrefixWithKeyParser(ctx.KVStore(k.storeKey), types.KeyUptimeIncentiveRecords(poolId, uptimeIndex), ParseFullIncentiveRecordFromBz)
 }
 
 // GetUptimeGrowthInsideRange returns the uptime growth within the given tick range for all supported uptimes
@@ -344,16 +413,8 @@ func (k Keeper) GetUptimeGrowthOutsideRange(ctx sdk.Context, poolId uint64, lowe
 	return osmoutils.SubDecCoinArrays(globalUptimeValues, uptimeGrowthInside)
 }
 
-// initOrUpdatePositionUptime either adds or updates records for all uptime accumulators `position` qualifies for
-func (k Keeper) initOrUpdatePositionUptime(ctx sdk.Context, poolId uint64, liquidity sdk.Dec, owner sdk.AccAddress, lowerTick, upperTick int64, liquidityDelta sdk.Dec, joinTime time.Time, freezeDuration time.Duration) error {
-	// We update accumulators _prior_ to any position-related updates to ensure
-	// past rewards aren't distributed to new liquidity. We also update pool's
-	// LastLiquidityUpdate here.
-	err := k.updateUptimeAccumulatorsToNow(ctx, poolId)
-	if err != nil {
-		return err
-	}
-
+// initPositionUptime adds for all uptime accumulators `position` qualifies for.
+func (k Keeper) initPositionUptime(ctx sdk.Context, poolId uint64, owner sdk.AccAddress, lowerTick, upperTick int64, liquidityDelta sdk.Dec, joinTime time.Time, freezeDuration time.Duration, positionId uint64) error {
 	// Create records for relevant uptime accumulators here.
 	uptimeAccumulators, err := k.getUptimeAccumulators(ctx, poolId)
 	if err != nil {
@@ -365,55 +426,35 @@ func (k Keeper) initOrUpdatePositionUptime(ctx sdk.Context, poolId uint64, liqui
 		return err
 	}
 
-	globalUptimeGrowthOutsideRange, err := k.GetUptimeGrowthOutsideRange(ctx, poolId, lowerTick, upperTick)
-	if err != nil {
-		return err
-	}
-
 	// Loop through uptime accums for all supported uptimes on the pool and init or update position's records
-	positionName := string(types.KeyFullPosition(poolId, owner, lowerTick, upperTick, joinTime, freezeDuration))
+	positionName := string(types.KeyPositionId(positionId))
 	for uptimeIndex, uptime := range types.SupportedUptimes {
 		// We assume every position update requires the position to be frozen for the
 		// min uptime again. Thus, the difference between the position's `freezeDuration`
 		// and the blocktime when the update happens should be greater than or equal
 		// to the required uptime.
-
-		// TODO: consider replacing BlockTime with a new field, JoinTime, so that post-join updates are not skipped
 		if freezeDuration >= uptime {
 			curUptimeAccum := uptimeAccumulators[uptimeIndex]
 
 			// If a record does not exist for this uptime accumulator, create a new position.
-			// Otherwise, add to existing record.
+			// Otherwise, throw an error
 			recordExists, err := curUptimeAccum.HasPosition(positionName)
 			if err != nil {
 				return err
 			}
+			if recordExists {
+				return types.PositionAlreadyExistsError{PoolId: poolId, LowerTick: lowerTick, UpperTick: upperTick, JoinTime: joinTime, FreezeDuration: freezeDuration}
+			}
 
-			if !recordExists {
-				// Since the position should only be entitled to uptime growth within its range, we checkpoint globalUptimeGrowthInsideRange as
-				// its accumulator's init value. During the claiming (or, equivalently, position updating) process, we ensure that incentives are
-				// not overpaid.
-				err = curUptimeAccum.NewPositionCustomAcc(positionName, liquidity, globalUptimeGrowthInsideRange[uptimeIndex], emptyOptions)
-				if err != nil {
-					return err
-				}
-			} else {
-				// Prep accum since we claim rewards first under the hood before any update (otherwise we would overpay)
-				err = preparePositionAccumulator(curUptimeAccum, positionName, globalUptimeGrowthOutsideRange[uptimeIndex])
-				if err != nil {
-					return err
-				}
-
-				// Note that even though "unclaimed rewards" accrue in the accumulator prior to freezeDuration, since position withdrawal
-				// and incentive collection are only allowed when current time is past freezeDuration these rewards are not accessible until then.
-				err = curUptimeAccum.UpdatePositionCustomAcc(positionName, liquidityDelta, globalUptimeGrowthInsideRange[uptimeIndex])
-				if err != nil {
-					return err
-				}
+			// Since the position should only be entitled to uptime growth within its range, we checkpoint globalUptimeGrowthInsideRange as
+			// its accumulator's init value. During the claiming (or, equivalently, position updating) process, we ensure that incentives are
+			// not overpaid.
+			err = curUptimeAccum.NewPositionCustomAcc(positionName, liquidityDelta, globalUptimeGrowthInsideRange[uptimeIndex], emptyOptions)
+			if err != nil {
+				return err
 			}
 		}
 	}
-
 	return nil
 }
 
@@ -451,33 +492,47 @@ func prepareAccumAndClaimRewards(accum accum.AccumulatorObject, positionKey stri
 // claimAllIncentivesForPosition claims and returns all the incentives for a given position.
 // It takes in a `forfeitIncentives` boolean to indicate whether the accrued incentives should be forfeited, in which case it
 // redeposits the accrued rewards back into the accumulator as additional rewards for other participants.
-func (k Keeper) claimAllIncentivesForPosition(ctx sdk.Context, poolId uint64, owner sdk.AccAddress, lowerTick int64, upperTick int64, joinTime time.Time, freezeDuration time.Duration, forfeitIncentives bool) (sdk.Coins, error) {
-	uptimeAccumulators, err := k.getUptimeAccumulators(ctx, poolId)
+func (k Keeper) claimAllIncentivesForPosition(ctx sdk.Context, positionId uint64, forfeitIncentives bool) (sdk.Coins, error) {
+	// Retrieve the position with the given ID.
+	position, err := k.GetPosition(ctx, positionId)
+	if err != nil {
+		return sdk.Coins{}, err
+	}
+
+	// Retrieve the uptime accumulators for the position's pool.
+	uptimeAccumulators, err := k.getUptimeAccumulators(ctx, position.PoolId)
 	if err != nil {
 		return sdk.Coins{}, err
 	}
 
 	// Compute uptime growth outside of the range between lower tick and upper tick
-	uptimeGrowthOutside, err := k.GetUptimeGrowthOutsideRange(ctx, poolId, lowerTick, upperTick)
+	uptimeGrowthOutside, err := k.GetUptimeGrowthOutsideRange(ctx, position.PoolId, position.LowerTick, position.UpperTick)
 	if err != nil {
 		return sdk.Coins{}, err
 	}
 
-	positionName := string(types.KeyFullPosition(poolId, owner, lowerTick, upperTick, joinTime, freezeDuration))
+	// Create a variable to hold the name of the position.
+	positionName := string(types.KeyPositionId(positionId))
+
+	// Create a variable to hold the total collected incentives for the position.
 	collectedIncentivesForPosition := sdk.Coins{}
+
+	// Loop through each uptime accumulator for the pool.
 	for uptimeIndex, uptimeAccum := range uptimeAccumulators {
+		// Check if the accumulator contains the position.
 		hasPosition, err := uptimeAccum.HasPosition(positionName)
 		if err != nil {
 			return sdk.Coins{}, err
 		}
 
+		// If the accumulator contains the position, claim the position's incentives.
 		if hasPosition {
 			collectedIncentivesForUptime, err := prepareAccumAndClaimRewards(uptimeAccum, positionName, uptimeGrowthOutside[uptimeIndex])
 			if err != nil {
 				return sdk.Coins{}, err
 			}
 
-			// If the collected incentives are forfeited, we deposit them back into the accumulator to be distributed
+			// If the claimed incentives are forfeited, deposit them back into the accumulator to be distributed
 			// to other qualifying positions.
 			if forfeitIncentives {
 				uptimeAccum.AddToAccumulator(sdk.NewDecCoinsFromCoins(collectedIncentivesForUptime...))
@@ -490,49 +545,42 @@ func (k Keeper) claimAllIncentivesForPosition(ctx sdk.Context, poolId uint64, ow
 	return collectedIncentivesForPosition, nil
 }
 
-// collectIncentives collects incentives for all uptime accumulators for all positions belonging to `owner` that have exactly
-// the same lower and upper ticks.
+// collectIncentives collects incentives for all uptime accumulators for the specified position id.
 //
 // Upon successful collection, it bank sends the incentives from the pool address to the owner and returns the collected coins.
 // Returns error if:
-// - pool with the given id does not exist
-// - no position given by pool id, owner, lower tick and upper tick exists
+// - position with the given id does not exist
 // - other internal database or math errors.
-func (k Keeper) collectIncentives(ctx sdk.Context, poolId uint64, owner sdk.AccAddress, lowerTick int64, upperTick int64) (sdk.Coins, error) {
-	positionsInRange, err := osmoutils.GatherValuesFromStorePrefixWithKeyParser(ctx.KVStore(k.storeKey), types.KeyPosition(poolId, owner, lowerTick, upperTick), ParseFullPositionFromBytes)
+func (k Keeper) collectIncentives(ctx sdk.Context, owner sdk.AccAddress, positionId uint64) (sdk.Coins, error) {
+	// Retrieve the position with the given ID.
+	position, err := k.GetPosition(ctx, positionId)
 	if err != nil {
 		return sdk.Coins{}, err
 	}
 
-	if len(positionsInRange) == 0 {
-		return sdk.Coins{}, types.PositionNotFoundError{PoolId: poolId, LowerTick: lowerTick, UpperTick: upperTick}
-	}
-
-	collectedIncentives := sdk.Coins{}
-	for _, position := range positionsInRange {
-		collectedIncentivesForPosition, err := k.claimAllIncentivesForPosition(ctx, poolId, owner, lowerTick, upperTick, position.JoinTime, position.FreezeDuration, false)
-		if err != nil {
-			return sdk.Coins{}, err
-		}
-
-		collectedIncentives = collectedIncentives.Add(collectedIncentivesForPosition...)
-	}
-
-	// Once we have iterated through all the positions, we do a single bank send from the pool to the owner.
-	// We skip this step if collected incentives are zero.
-	if collectedIncentives.IsZero() {
-		return collectedIncentives, nil
-	}
-
-	pool, err := k.getPoolById(ctx, poolId)
+	// Claim all incentives for the position.
+	collectedIncentivesForPosition, err := k.claimAllIncentivesForPosition(ctx, position.PositionId, false)
 	if err != nil {
 		return sdk.Coins{}, err
 	}
 
-	if err := k.bankKeeper.SendCoins(ctx, pool.GetAddress(), owner, collectedIncentives); err != nil {
+	// If no incentives were collected, return an empty coin set.
+	if collectedIncentivesForPosition.IsZero() {
+		return collectedIncentivesForPosition, nil
+	}
+
+	// Send the collected incentives to the position's owner.
+	pool, err := k.getPoolById(ctx, position.PoolId)
+	if err != nil {
 		return sdk.Coins{}, err
 	}
-	return collectedIncentives, nil
+
+	// Send the collected incentives to the position's owner from the pool's address.
+	if err := k.bankKeeper.SendCoins(ctx, pool.GetAddress(), owner, collectedIncentivesForPosition); err != nil {
+		return sdk.Coins{}, err
+	}
+
+	return collectedIncentivesForPosition, nil
 }
 
 // createIncentive creates an incentive record in state for the given pool
@@ -592,8 +640,20 @@ func (k Keeper) CreateIncentive(ctx sdk.Context, poolId uint64, sender sdk.AccAd
 		MinUptime:        minUptime,
 	}
 
+	// Get all incentive records for uptime
+	existingRecordsForUptime, err := k.GetAllIncentiveRecordsForUptime(ctx, poolId, minUptime)
+	if err != nil {
+		return types.IncentiveRecord{}, err
+	}
+
+	// Fixed gas consumption per incentive creation to prevent spam
+	ctx.GasMeter().ConsumeGas(uint64(types.BaseGasFeeForNewIncentive*len(existingRecordsForUptime)), "cl incentive creation")
+
 	// Set incentive record in state
-	k.setIncentiveRecord(ctx, incentiveRecord)
+	err = k.setIncentiveRecord(ctx, incentiveRecord)
+	if err != nil {
+		return types.IncentiveRecord{}, err
+	}
 
 	// Transfer tokens from sender to pool balance
 	if err := k.bankKeeper.SendCoins(ctx, sender, pool.GetAddress(), sdk.NewCoins(incentiveCoin)); err != nil {
