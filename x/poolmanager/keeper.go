@@ -57,6 +57,7 @@ func NewKeeper(storeKey sdk.StoreKey, paramSpace paramtypes.Subspace, gammKeeper
 		paramSpace:          paramSpace,
 		gammKeeper:          gammKeeper,
 		concentratedKeeper:  concentratedKeeper,
+		cosmwasmpoolKeeper:  cosmwasmpoolKeeper,
 		bankKeeper:          bankKeeper,
 		accountKeeper:       accountKeeper,
 		communityPoolKeeper: communityPoolKeeper,
