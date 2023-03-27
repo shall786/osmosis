@@ -44,11 +44,14 @@ func (s *CosmWasmPoolSuite) TestSpotPrice() {
 		expectedSpotPrice = sdk.OneDec()
 	)
 
-	// TODO: turn table driven and test all cases.
-
 	pool := s.PrepareCosmWasmPool()
 
 	actualSpotPrice, err := pool.SpotPrice(s.Ctx, denomA, denomB)
+	s.Require().NoError(err)
+
+	s.Require().Equal(expectedSpotPrice, actualSpotPrice)
+
+	actualSpotPrice, err = pool.SpotPrice(s.Ctx, denomB, denomA)
 	s.Require().NoError(err)
 
 	s.Require().Equal(expectedSpotPrice, actualSpotPrice)

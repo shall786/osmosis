@@ -7,6 +7,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 
 	"github.com/osmosis-labs/osmosis/v15/x/cosmwasmpool/cosmwasm"
+	"github.com/osmosis-labs/osmosis/v15/x/cosmwasmpool/cosmwasm/msg"
 	"github.com/osmosis-labs/osmosis/v15/x/cosmwasmpool/types"
 	gammtypes "github.com/osmosis-labs/osmosis/v15/x/gamm/types"
 	poolmanagertypes "github.com/osmosis-labs/osmosis/v15/x/poolmanager/types"
@@ -61,16 +62,16 @@ func (p Pool) String() string {
 
 // GetSwapFee returns the swap fee of the pool.
 func (p Pool) GetSwapFee(ctx sdk.Context) sdk.Dec {
-	request := cosmwasm.GetSwapFee{}
-	response := cosmwasm.MustQuery[cosmwasm.GetSwapFee, cosmwasm.GetSwapFeeResponse](ctx, p.WasmKeeper, p.ContractAddress, request)
+	request := msg.GetSwapFeeQueryMsg{}
+	response := cosmwasm.MustQuery[msg.GetSwapFeeQueryMsg, msg.GetSwapFeeQueryMsgResponse](ctx, p.WasmKeeper, p.ContractAddress, request)
 	return response.SwapFee
 }
 
 // GetExitFee returns the exit fee of the pool
 // TODO: this method is to ve removed.
 func (p Pool) GetExitFee(ctx sdk.Context) sdk.Dec {
-	request := cosmwasm.GetExitFee{}
-	response := cosmwasm.MustQuery[cosmwasm.GetExitFee, cosmwasm.GetExitFeeResponse](ctx, p.WasmKeeper, p.ContractAddress, request)
+	request := msg.GetExitFeeQueryMsg{}
+	response := cosmwasm.MustQuery[msg.GetExitFeeQueryMsg, msg.GetExitFeeQueryMsgResponse](ctx, p.WasmKeeper, p.ContractAddress, request)
 	return response.ExitFee
 }
 
@@ -81,13 +82,13 @@ func (p Pool) IsActive(ctx sdk.Context) bool {
 
 // SpotPrice returns the spot price of the pool.
 func (p Pool) SpotPrice(ctx sdk.Context, baseAssetDenom string, quoteAssetDenom string) (sdk.Dec, error) {
-	request := cosmwasm.SpotPriceRequest{
-		SpotPrice: cosmwasm.SpotPrice{
+	request := msg.SpotPriceQueryMsg{
+		SpotPrice: msg.SpotPrice{
 			QuoteAssetDenom: quoteAssetDenom,
 			BaseAssetDenom:  baseAssetDenom,
 		},
 	}
-	response, err := cosmwasm.Query[cosmwasm.SpotPriceRequest, cosmwasm.SpotPriceResponse](ctx, p.WasmKeeper, p.ContractAddress, request)
+	response, err := cosmwasm.Query[msg.SpotPriceQueryMsg, msg.SpotPriceQueryMsgResponse](ctx, p.WasmKeeper, p.ContractAddress, request)
 	if err != nil {
 		return sdk.Dec{}, err
 	}
@@ -106,8 +107,8 @@ func (p Pool) GetType() poolmanagertypes.PoolType {
 
 // GetTotalPoolLiquidity returns the total pool liquidity
 func (p Pool) GetTotalPoolLiquidity(ctx sdk.Context) sdk.Coins {
-	request := cosmwasm.GetTotalPoolLiquidity{}
-	response := cosmwasm.MustQuery[cosmwasm.GetTotalPoolLiquidity, cosmwasm.GetTotalPoolLiquidityResponse](ctx, p.WasmKeeper, p.ContractAddress, request)
+	request := msg.GetTotalPoolLiquidityQueryMsg{}
+	response := cosmwasm.MustQuery[msg.GetTotalPoolLiquidityQueryMsg, msg.GetTotalPoolLiquidityQueryMsgResponse](ctx, p.WasmKeeper, p.ContractAddress, request)
 	return response.TotalPoolLiquidity
 }
 

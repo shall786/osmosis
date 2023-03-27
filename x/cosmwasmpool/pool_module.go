@@ -5,6 +5,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/osmosis-labs/osmosis/v15/x/cosmwasmpool/cosmwasm"
+	"github.com/osmosis-labs/osmosis/v15/x/cosmwasmpool/cosmwasm/msg"
 	"github.com/osmosis-labs/osmosis/v15/x/cosmwasmpool/types"
 	poolmanagertypes "github.com/osmosis-labs/osmosis/v15/x/poolmanager/types"
 )
@@ -154,8 +155,8 @@ func (k Keeper) SwapExactAmountIn(
 		return sdk.Int{}, err
 	}
 
-	request := cosmwasm.NewSwapExactAmountInRequest(sender.String(), tokenIn, tokenOutDenom, tokenOutMinAmount, swapFee)
-	response, err := cosmwasm.Sudo[cosmwasm.SwapExactAmountInRequest, cosmwasm.SwapExactAmountInResponse](ctx, k.contractKeeper, cosmwasmPool.GetContractAddress(), request)
+	request := msg.NewSwapExactAmountInSudoMsg(sender.String(), tokenIn, tokenOutDenom, tokenOutMinAmount, swapFee)
+	response, err := cosmwasm.Sudo[msg.SwapExactAmountInSudoMsg, msg.SwapExactAmountInSudoMsgResponse](ctx, k.contractKeeper, cosmwasmPool.GetContractAddress(), request)
 	if err != nil {
 		return sdk.Int{}, err
 	}
@@ -187,8 +188,8 @@ func (k Keeper) CalcOutAmtGivenIn(
 		return sdk.Coin{}, err
 	}
 
-	request := cosmwasm.NewCalcOutAmtGivenInRequest(tokenIn, tokenOutDenom, swapFee)
-	response, err := cosmwasm.Query[cosmwasm.CalcOutAmtGivenInRequest, cosmwasm.CalcOutAmtGivenInResponse](ctx, k.wasmKeeper, cosmwasmPool.GetContractAddress(), request)
+	request := msg.NewCalcOutAmtGivenInRequest(tokenIn, tokenOutDenom, swapFee)
+	response, err := cosmwasm.Query[msg.CalcOutAmtGivenInRequest, msg.CalcOutAmtGivenInResponse](ctx, k.wasmKeeper, cosmwasmPool.GetContractAddress(), request)
 	if err != nil {
 		return sdk.Coin{}, err
 	}
@@ -224,8 +225,8 @@ func (k Keeper) SwapExactAmountOut(
 		return sdk.Int{}, err
 	}
 
-	request := cosmwasm.NewSwapExactAmountOutRequest(sender.String(), tokenInDenom, tokenOut, tokenInMaxAmount, swapFee)
-	response, err := cosmwasm.Sudo[cosmwasm.SwapExactAmountOutRequest, cosmwasm.SwapExactAmountOutResponse](ctx, k.contractKeeper, cosmwasmPool.GetContractAddress(), request)
+	request := msg.NewSwapExactAmountOutSudoMsg(sender.String(), tokenInDenom, tokenOut, tokenInMaxAmount, swapFee)
+	response, err := cosmwasm.Sudo[msg.SwapExactAmountOutSudoMsg, msg.SwapExactAmountOutSudoMsgResponse](ctx, k.contractKeeper, cosmwasmPool.GetContractAddress(), request)
 	if err != nil {
 		return sdk.Int{}, err
 	}
@@ -257,8 +258,8 @@ func (k Keeper) CalcInAmtGivenOut(
 		return sdk.Coin{}, err
 	}
 
-	request := cosmwasm.NewCalcInAmtGivenOutRequest(tokenInDenom, tokenOut, swapFee)
-	response, err := cosmwasm.Query[cosmwasm.CalcInAmtGivenOutRequest, cosmwasm.CalcInAmtGivenOutResponse](ctx, k.wasmKeeper, cosmwasmPool.GetContractAddress(), request)
+	request := msg.NewCalcInAmtGivenOutRequest(tokenInDenom, tokenOut, swapFee)
+	response, err := cosmwasm.Query[msg.CalcInAmtGivenOutRequest, msg.CalcInAmtGivenOutResponse](ctx, k.wasmKeeper, cosmwasmPool.GetContractAddress(), request)
 	if err != nil {
 		return sdk.Coin{}, err
 	}

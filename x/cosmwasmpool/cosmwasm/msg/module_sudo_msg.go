@@ -1,26 +1,28 @@
 // This file defines requests and responses for issuing
 // sudo messages to the cosmwasm pool contract from the cosmwasm pool module.
-package cosmwasm
+package msg
 
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
+
+type EmptyStruct struct{}
 
 // SwapExactAmountIn
 type SwapExactAmountIn struct {
 	Sender        string   `json:"sender"`
 	TokenIn       sdk.Coin `json:"token_in"`
 	TokenOutDenom string   `json:"token_out_denom"`
-	TokenOutMin   sdk.Int  `json:"token_out_min"`
+	TokenOutMin   sdk.Int  `json:"token_out_min_amount"`
 	SwapFee       sdk.Dec  `json:"swap_fee"`
 }
 
-type SwapExactAmountInRequest struct {
+type SwapExactAmountInSudoMsg struct {
 	SwapExactAmountIn SwapExactAmountIn `json:"swap_exact_amount_in"`
 }
 
-func NewSwapExactAmountInRequest(sender string, tokenIn sdk.Coin, tokenOutDenom string, tokenOutMin sdk.Int, swapFee sdk.Dec) SwapExactAmountInRequest {
-	return SwapExactAmountInRequest{
+func NewSwapExactAmountInSudoMsg(sender string, tokenIn sdk.Coin, tokenOutDenom string, tokenOutMin sdk.Int, swapFee sdk.Dec) SwapExactAmountInSudoMsg {
+	return SwapExactAmountInSudoMsg{
 		SwapExactAmountIn: SwapExactAmountIn{
 			Sender:        sender,
 			TokenIn:       tokenIn,
@@ -31,12 +33,12 @@ func NewSwapExactAmountInRequest(sender string, tokenIn sdk.Coin, tokenOutDenom 
 	}
 }
 
-type SwapExactAmountInResponse struct {
+type SwapExactAmountInSudoMsgResponse struct {
 	TokenOutAmount sdk.Int `json:"token_out_amount"`
 }
 
 // SwapExactAmountOut
-type SwapExactAmountOutRequest struct {
+type SwapExactAmountOutSudoMsg struct {
 	SwapExactAmountOut SwapExactAmountOut `json:"swap_exact_amount_out"`
 }
 
@@ -48,8 +50,8 @@ type SwapExactAmountOut struct {
 	SwapFee          sdk.Dec  `json:"swap_fee"`
 }
 
-func NewSwapExactAmountOutRequest(sender string, tokenInDenom string, tokenOut sdk.Coin, tokenInMaxAmount sdk.Int, swapFee sdk.Dec) SwapExactAmountOutRequest {
-	return SwapExactAmountOutRequest{
+func NewSwapExactAmountOutSudoMsg(sender string, tokenInDenom string, tokenOut sdk.Coin, tokenInMaxAmount sdk.Int, swapFee sdk.Dec) SwapExactAmountOutSudoMsg {
+	return SwapExactAmountOutSudoMsg{
 		SwapExactAmountOut: SwapExactAmountOut{
 			Sender:           sender,
 			TokenInDenom:     tokenInDenom,
@@ -60,6 +62,6 @@ func NewSwapExactAmountOutRequest(sender string, tokenInDenom string, tokenOut s
 	}
 }
 
-type SwapExactAmountOutResponse struct {
+type SwapExactAmountOutSudoMsgResponse struct {
 	TokenInAmount sdk.Int `json:"token_in_amount"`
 }

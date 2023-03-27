@@ -1,6 +1,6 @@
 // This file defines requests and responses for querying
 // the cosmwasm pool contract from the cosmwasm pool module.
-package cosmwasm
+package msg
 
 import sdk "github.com/cosmos/cosmos-sdk/types"
 
@@ -12,7 +12,7 @@ type CalcOutGivenIn struct {
 }
 
 type CalcOutAmtGivenInRequest struct {
-	CalcOutGivenIn CalcOutGivenIn `json:"calc_out_given_in"`
+	CalcOutGivenIn CalcOutGivenIn `json:"calc_out_amt_given_in"`
 }
 
 func NewCalcOutAmtGivenInRequest(tokenIn sdk.Coin, tokenOutDenom string, swapFee sdk.Dec) CalcOutAmtGivenInRequest {
@@ -26,7 +26,7 @@ func NewCalcOutAmtGivenInRequest(tokenIn sdk.Coin, tokenOutDenom string, swapFee
 }
 
 type CalcOutAmtGivenInResponse struct {
-	TokenOut sdk.Coin
+	TokenOut sdk.Coin `json:"token_out"`
 }
 
 // CalcInAmtGivenOut
@@ -37,7 +37,7 @@ type CalcInGivenOut struct {
 }
 
 type CalcInAmtGivenOutRequest struct {
-	CalcInGivenOut CalcInGivenOut `json:"calc_in_given_out"`
+	CalcInGivenOut CalcInGivenOut `json:"calc_in_amt_given_out"`
 }
 
 func NewCalcInAmtGivenOutRequest(tokenInDenom string, tokenOut sdk.Coin, swapFee sdk.Dec) CalcInAmtGivenOutRequest {
@@ -51,5 +51,5 @@ func NewCalcInAmtGivenOutRequest(tokenInDenom string, tokenOut sdk.Coin, swapFee
 }
 
 type CalcInAmtGivenOutResponse struct {
-	TokenIn sdk.Coin
+	TokenIn sdk.Coin `json:"token_in"`
 }

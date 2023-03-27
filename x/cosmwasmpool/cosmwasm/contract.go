@@ -97,6 +97,11 @@ func Sudo[T any, K any](ctx sdk.Context, contractKeeper types.ContractKeeper, co
 		return response, err
 	}
 
+	// valid empty response
+	if len(responseBz) == 0 {
+		return response, nil
+	}
+
 	if err := json.Unmarshal(responseBz, &response); err != nil {
 		return response, err
 	}
@@ -123,6 +128,72 @@ func Sudo[T any, K any](ctx sdk.Context, contractKeeper types.ContractKeeper, co
 // - If an error occurs during the JSON marshaling, sudo call, or JSON unmarshaling process.
 func MustSudo[T any, K any](ctx sdk.Context, contractKeeper types.ContractKeeper, contractAddress string, request T) (response K) {
 	response, err := Sudo[T, K](ctx, contractKeeper, contractAddress, request)
+	if err != nil {
+		panic(err)
+	}
+
+	return response
+}
+
+// Execute is a generic function to execute a contract call on a given contract address with a specified request.
+// It accepts a context, contract keeper, contract address, caller address, coins, and request data.
+// This function works with any data type for the request and response (T and K).
+// It marshals the request data into JSON format, executes the contract call, and then unmarshals the response
+// data back into the specified response type (K). In case of any error, it returns the zero value of the response
+// type along with the error.
+//
+// Parameters:
+// - ctx: The SDK context.
+// - contractKeeper: An instance of the contract keeper to manage contract interactions.
+// - contractAddress: The bech32 address of the contract to be executed.
+// - caller: The address of the account making the call.
+// - coins: The coins to be transferred during the call.
+// - request: The request data, can be of any data type.
+//
+// Returns:
+// - response: The response data, can be of any data type (K). Returns the zero value of K in case of an error.
+// - err: An error object that indicates any error during the contract execution or data marshalling/unmarshalling process.
+func Execute[T any, K any](ctx sdk.Context, contractKeeper types.ContractKeeper, contractAddress string, caller sdk.AccAddress, coins sdk.Coins, request T) (response K, err error) {
+	bz, err := json.Marshal(request)
+	if err != nil {
+		return response, err
+	}
+
+	responseBz, err := contractKeeper.Execute(ctx, sdk.MustAccAddressFromBech32(contractAddress), caller, bz, coins)
+	if err != nil {
+		return response, err
+	}
+
+	// valid empty response
+	if len(responseBz) == 0 {
+		return response, nil
+	}
+
+	if err := json.Unmarshal(responseBz, &response); err != nil {
+		return response, err
+	}
+
+	return response, nil
+}
+
+// MustExecute is a wrapper around the Execute function, which provides a more concise API for
+// executing a contract call on a given contract address with a specified request.
+// It works with any data type for the request and response (T and K).
+// This function panics if an error occurs during the contract execution or data marshalling/unmarshalling process.
+// Use this function when you're confident that the contract execution will not encounter any errors.
+//
+// Parameters:
+// - ctx: The SDK context.
+// - contractKeeper: An instance of the contract keeper to manage contract interactions.
+// - contractAddress: The bech32 address of the contract to be executed.
+// - caller: The address of the account making the call.
+// - coins: The coins to be transferred during the call.
+// - request: The request data, can be of any data type.
+//
+// Returns:
+// - response: The response data, can be of any data type (K).
+func MustExecute[T any, K any](ctx sdk.Context, contractKeeper types.ContractKeeper, contractAddress string, caller sdk.AccAddress, coins sdk.Coins, request T) (response K) {
+	response, err := Execute[T, K](ctx, contractKeeper, contractAddress, caller, coins, request)
 	if err != nil {
 		panic(err)
 	}

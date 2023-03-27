@@ -8,7 +8,7 @@ import (
 	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/osmosis-labs/osmosis/v15/x/cosmwasmpool/cosmwasm"
+	"github.com/osmosis-labs/osmosis/v15/x/cosmwasmpool/cosmwasm/msg"
 	"github.com/osmosis-labs/osmosis/v15/x/cosmwasmpool/model"
 
 	cosmwasmpooltypes "github.com/osmosis-labs/osmosis/v15/x/cosmwasmpool/types"
@@ -57,7 +57,7 @@ func (s *KeeperTestHelper) PrepareCustomTransmuterPool(owner sdk.AccAddress, den
 	codeID, _, err := s.App.ContractKeeper.Create(s.Ctx, cosmwasmpoolModuleAddr, code, &instantiateConfig)
 	s.Require().NoError(err)
 
-	instantiateMsg := cosmwasm.InstantiateMsg{
+	instantiateMsg := msg.InstantiateMsg{
 		PoolAssetDenoms: denoms,
 	}
 
